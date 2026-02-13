@@ -62,11 +62,13 @@ function App() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      // 새로운 파일을 선택하면 이전 작업 결과 초기화
       setProcessedImageUrl(null);
       setError(null);
       setStatusMessage('새로운 작업이 시작되었습니다. 기존 결과물은 삭제되었습니다.');
       setSelectedFile(event.target.files[0]);
+      
+      // 같은 파일 반복 선택이 가능하도록 value 초기화
+      event.target.value = '';
     }
   };
 
@@ -159,16 +161,18 @@ function App() {
       <main>
         <div className="settings-section">
           <h2>1. Set Opacity</h2>
-          <div className="slider-container">
-            <label htmlFor="opacity-slider">Opacity: {opacity}%</label>
+          <div className="input-container">
+            <label htmlFor="opacity-input">Opacity (0-100%): </label>
             <input
-              id="opacity-slider"
-              type="range"
+              id="opacity-input"
+              type="number"
               min="0"
               max="100"
               value={opacity}
-              onChange={(e) => setOpacity(Number(e.target.value))}
+              onChange={(e) => setOpacity(Math.min(100, Math.max(0, Number(e.target.value))))}
+              className="number-input"
             />
+            <span className="unit-label">%</span>
           </div>
         </div>
 

@@ -52,8 +52,23 @@ export default async function handler(req, res) {
 
     // 3. 이미지 처리 (Sharp)
     const targetOpacity = parseFloat(opacity) || 0.95;
-    const foregroundImage = sharp(file.filepath);
-    const foregroundMetadata = await foregroundImage.metadata();
+    let foregroundImage = sharp(file.filepath);
+    let foregroundMetadata = await foregroundImage.metadata();
+
+    // 3. 랜덤 크롭 (0.1% ~ 0.5%)
+    const cropRate = (Math.random() * (0.005 - 0.001) + 0.001);
+    const cropWidth = Math.floor(foregroundMetadata.width * (1 - cropRate));
+    const cropHeight = Math.floor(foregroundMetadata.height * (1 - cropRate));
+    
+    foregroundImage = foregroundImage.extract({
+      left: Math.floor((foregroundMetadata.width - cropWidth) / 2),
+      top: Math.floor((foregroundMetadata.height - cropHeight) / 2),
+      width: cropWidth,
+      height: cropHeight
+    });
+    
+    // 크롭 후 메타데이터 갱신
+    foregroundMetadata = await foregroundImage.metadata();
     
     // 전경 이미지 투명도 조절
     const foregroundRawBuffer = await foregroundImage.ensureAlpha().raw().toBuffer();
