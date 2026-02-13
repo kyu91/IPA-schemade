@@ -22,6 +22,34 @@ function App() {
     }
   }, []);
 
+  // 클립보드 붙여넣기 이벤트 핸들러
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!isLoggedIn) return;
+
+      const items = e.clipboardData?.items;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+              setProcessedImageUrl(null);
+              setError(null);
+              setStatusMessage('클립보드 이미지가 감지되었습니다. 작업을 시작합니다.');
+              setSelectedFile(file);
+              break;
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [isLoggedIn]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginEmail && loginPassword) {
@@ -213,8 +241,8 @@ function App() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          <h2>2. Select Your Image</h2>
-          <p>Processing and download will start automatically.</p>
+          <h2>2. Select, Drag & Drop or Paste</h2>
+          <p>Click to select, drag a file here, or just press <strong>Ctrl+V</strong> to paste from clipboard.</p>
           <input type="file" accept="image/*" onChange={handleFileChange} />
           {statusMessage && <p className="status-message">{statusMessage}</p>}
           {selectedFile && !isLoading && !error && !statusMessage && <p>Current file: {selectedFile.name}</p>}
