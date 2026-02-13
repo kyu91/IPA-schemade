@@ -147,6 +147,31 @@ button:disabled {
   margin-top: 1rem;
 }
 
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.list-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.download-all-button {
+  background-color: #4cd137;
+  color: black;
+  font-size: 0.8rem;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+}
+
+.download-all-button:hover {
+  background-color: #44bd32;
+  border-color: transparent;
+}
+
 .items-container {
   display: flex;
   flex-direction: column;

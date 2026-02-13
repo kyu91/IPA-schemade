@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 interface ProcessingItem {
@@ -21,6 +21,9 @@ function App() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [opacity, setOpacity] = useState<number>(95);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // 이미 처리 중인 항목을 추적하기 위한 Ref
+  const processingRef = useRef<Set<string>>(new Set());
 
   // 자동 로그인 체크 (페이지 로드 시)
   useEffect(() => {
@@ -75,27 +78,47 @@ function App() {
     setLoginPassword('');
   };
 
+  // 모든 완료된 파일 다운로드 함수
+  const downloadAll = () => {
+    const completedItems = processingItems.filter(item => item.status === 'completed');
+    completedItems.forEach((item, index) => {
+      if (item.resultUrl) {
+        // 브라우저 차단을 피하기 위해 순차적으로 다운로드 실행
+        setTimeout(() => {
+          const link = document.createElement('a');
+          link.href = item.resultUrl!;
+          link.setAttribute('download', item.fileName);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }, index * 300); // 0.3초 간격
+      }
+    });
+  };
+
   // Effect to automatically start processing
   useEffect(() => {
-    const pendingItems = processingItems.filter(item => item.status === 'pending');
+    const pendingItems = processingItems.filter(item => 
+      item.status === 'pending' && !processingRef.current.has(item.id)
+    );
     
     if (pendingItems.length > 0) {
-      // 1. 모든 pending 아이템을 한 번에 processing으로 변경 (Batch Update)
+      pendingItems.forEach(item => processingRef.current.add(item.id));
+
       setProcessingItems(prev => 
         prev.map(p => {
-          if (p.status === 'pending') {
+          if (p.status === 'pending' && processingRef.current.has(p.id)) {
             return { ...p, status: 'processing', progress: 10 };
           }
           return p;
         })
       );
 
-      // 2. 실제 처리 시작
       pendingItems.forEach(item => {
         processItem(item);
       });
     }
-  }, [processingItems.filter(p => p.status === 'pending').length]); // pending 개수가 변할 때만 실행
+  }, [processingItems]);
 
   const addFilesToQueue = (files: FileList | File[]) => {
     const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
@@ -291,7 +314,26 @@ function App() {
 
         {processingItems.length > 0 && (
           <div className="processing-list">
-            <h3>Processing Queue ({processingItems.length})</h3>
+            <div className="list-header">
+              <h3>Processing Queue ({processingItems.length})</h3>
+              <div className="list-actions">
+                {processingItems.some(i => i.status === 'completed') && (
+                  <button className="download-all-button" onClick={downloadAll}>
+                    Download All
+                  </button>
+                )}
+                <button 
+                  className="clear-button" 
+                  onClick={() => {
+                    setProcessingItems([]);
+                    processingRef.current.clear();
+                  }}
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+            
             <div className="items-container">
               {processingItems.map(item => (
                 <div key={item.id} className={`process-item ${item.status}`}>
@@ -321,12 +363,6 @@ function App() {
                 </div>
               ))}
             </div>
-            <button 
-              className="clear-button" 
-              onClick={() => setProcessingItems([])}
-            >
-              Clear All
-            </button>
           </div>
         )}
       </main>
