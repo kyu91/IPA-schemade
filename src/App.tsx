@@ -76,45 +76,56 @@ function App() {
     setLoginPassword('');
   };
 
-  // Effect to automatically start processing when new items are added
+  // Effect to automatically start processing
   useEffect(() => {
+    // pending 상태인 것들만 찾아 실행
     const pendingItems = processingItems.filter(item => item.status === 'pending');
+    
     pendingItems.forEach(item => {
+      // 즉시 상태를 processing으로 변경하여 중복 실행 방지
+      setProcessingItems(prev => 
+        prev.map(p => p.id === item.id ? { ...p, status: 'processing', progress: 10 } : p)
+      );
       processItem(item);
     });
-  }, [processingItems]);
+  }, [processingItems.filter(p => p.status === 'pending').length]); // pending 개수가 변할 때만 실행
 
   const addFilesToQueue = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
+    const newItems: ProcessingItem[] = [];
     
+    // 1. 먼저 모든 파일을 큐에 추가 (시각적 즉시 피드백)
     for (const file of fileArray) {
       const id = Math.random().toString(36).substr(2, 9);
       const isHEIC = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
       
-      // 초기 아이템 추가
-      const newItem: ProcessingItem = {
+      newItems.push({
         id,
         file: file,
         fileName: file.name,
         status: isHEIC ? 'converting' : 'pending',
         progress: 0
-      };
+      });
+    }
 
-      setProcessingItems(prev => [...prev, newItem]);
+    setProcessingItems(prev => [...prev, ...newItems]);
+    setStatusMessage(`${fileArray.length}개의 파일이 추가되었습니다.`);
 
-      if (isHEIC) {
+    // 2. HEIC 파일들은 비동기로 변환 처리
+    for (const item of newItems) {
+      if (item.status === 'converting') {
         try {
-          // HEIC -> PNG 변환
           const convertedBlob = await heic2any({
-            blob: file,
-            toType: 'image/png'
+            blob: item.file as Blob,
+            toType: 'image/png',
+            quality: 0.8
           });
 
           const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
-          const newFileName = file.name.replace(/\.(heic|heif)$/i, '.png');
+          const newFileName = item.fileName.replace(/\.(heic|heif)$/i, '.png');
 
           setProcessingItems(prev => 
-            prev.map(p => p.id === id ? { 
+            prev.map(p => p.id === item.id ? { 
               ...p, 
               file: finalBlob, 
               fileName: newFileName,
@@ -122,18 +133,17 @@ function App() {
             } : p)
           );
         } catch (err) {
+          console.error('HEIC Conversion Error:', err);
           setProcessingItems(prev => 
-            prev.map(p => p.id === id ? { 
+            prev.map(p => p.id === item.id ? { 
               ...p, 
               status: 'error', 
-              error: 'HEIC 변환 실패' 
+              error: 'HEIC 변환 실패 (지원되지 않는 코덱일 수 있습니다)' 
             } : p)
           );
         }
       }
     }
-    
-    setStatusMessage(`${fileArray.length}개의 파일이 처리 대기 중입니다.`);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,11 +176,7 @@ function App() {
   };
 
   const processItem = async (item: ProcessingItem) => {
-    // Update status to processing
-    setProcessingItems(prev => 
-      prev.map(p => p.id === item.id ? { ...p, status: 'processing', progress: 10 } : p)
-    );
-
+    // 상태 변경은 이제 useEffect에서 관리하므로 여기서는 바로 처리에 들어갑니다.
     const formData = new FormData();
     formData.append('image', item.file, item.fileName);
     formData.append('opacity', String(opacity / 100));
