@@ -96,27 +96,25 @@ function App() {
     });
   };
 
-  // Effect to automatically start processing
+  // Effect to automatically start processing (Sequential: One by one)
   useEffect(() => {
-    const pendingItems = processingItems.filter(item => 
+    // 현재 처리 중인 항목이 있는지 확인
+    const isAnyProcessing = processingItems.some(item => item.status === 'processing');
+    if (isAnyProcessing) return;
+
+    // 아직 시작 안 한 첫 번째 대기 항목 찾기
+    const nextItem = processingItems.find(item => 
       item.status === 'pending' && !processingRef.current.has(item.id)
     );
     
-    if (pendingItems.length > 0) {
-      pendingItems.forEach(item => processingRef.current.add(item.id));
+    if (nextItem) {
+      processingRef.current.add(nextItem.id);
 
       setProcessingItems(prev => 
-        prev.map(p => {
-          if (p.status === 'pending' && processingRef.current.has(p.id)) {
-            return { ...p, status: 'processing', progress: 10 };
-          }
-          return p;
-        })
+        prev.map(p => p.id === nextItem.id ? { ...p, status: 'processing', progress: 10 } : p)
       );
 
-      pendingItems.forEach(item => {
-        processItem(item);
-      });
+      processItem(nextItem);
     }
   }, [processingItems]);
 
