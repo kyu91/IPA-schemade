@@ -13,6 +13,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [opacity, setOpacity] = useState<number>(95);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   // 자동 로그인 체크 (페이지 로드 시)
   useEffect(() => {
@@ -69,6 +70,36 @@ function App() {
       
       // 같은 파일 반복 선택이 가능하도록 value 초기화
       event.target.value = '';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith('image/')) {
+        setProcessedImageUrl(null);
+        setError(null);
+        setStatusMessage('새로운 작업이 시작되었습니다. 기존 결과물은 삭제되었습니다.');
+        setSelectedFile(file);
+      } else {
+        setError('이미지 파일만 업로드 가능합니다.');
+      }
     }
   };
 
@@ -176,7 +207,12 @@ function App() {
           </div>
         </div>
 
-        <div className="upload-section">
+        <div 
+          className={`upload-section ${isDragging ? 'dragging' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <h2>2. Select Your Image</h2>
           <p>Processing and download will start automatically.</p>
           <input type="file" accept="image/*" onChange={handleFileChange} />
