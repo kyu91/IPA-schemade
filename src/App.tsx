@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+interface ProcessingItem {
+  id: string;
+  file: File;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  progress: number;
+  resultUrl?: string;
+  error?: string;
+}
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [loginEmail, setLoginEmail] = useState<string>(localStorage.getItem('email') || '');
   const [loginPassword, setLoginPassword] = useState<string>(localStorage.getItem('password') || '');
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [processingItems, setProcessingItems] = useState<ProcessingItem[]>([]);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [opacity, setOpacity] = useState<number>(95);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -29,17 +35,15 @@ function App() {
 
       const items = e.clipboardData?.items;
       if (items) {
+        const imageFiles: File[] = [];
         for (let i = 0; i < items.length; i++) {
           if (items[i].type.indexOf('image') !== -1) {
             const file = items[i].getAsFile();
-            if (file) {
-              setProcessedImageUrl(null);
-              setError(null);
-              setStatusMessage('클립보드 이미지가 감지되었습니다. 작업을 시작합니다.');
-              setSelectedFile(file);
-              break;
-            }
+            if (file) imageFiles.push(file);
           }
+        }
+        if (imageFiles.length > 0) {
+          addFilesToQueue(imageFiles);
         }
       }
     };
@@ -70,33 +74,33 @@ function App() {
     setLoginPassword('');
   };
 
-  // Effect to automatically start processing when a file is selected
+  // Effect to automatically start processing when new items are added
   useEffect(() => {
-    if (selectedFile) {
-      handleProcessImage();
-    }
-  }, [selectedFile]);
+    const pendingItems = processingItems.filter(item => item.status === 'pending');
+    pendingItems.forEach(item => {
+      processItem(item);
+    });
+  }, [processingItems]);
 
-  // Effect to automatically download the image when the URL is ready
-  useEffect(() => {
-    if (processedImageUrl) {
-      const link = document.createElement('a');
-      link.href = processedImageUrl;
-      link.setAttribute('download', `processed-${Date.now()}.png`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const addFilesToQueue = (files: FileList | File[]) => {
+    const newItems: ProcessingItem[] = Array.from(files)
+      .filter(file => file.type.startsWith('image/'))
+      .map(file => ({
+        id: Math.random().toString(36).substr(2, 9),
+        file: file,
+        status: 'pending',
+        progress: 0
+      }));
+
+    if (newItems.length > 0) {
+      setProcessingItems(prev => [...prev, ...newItems]);
+      setStatusMessage(`${newItems.length}개의 새로운 작업이 추가되었습니다.`);
     }
-  }, [processedImageUrl]);
+  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setProcessedImageUrl(null);
-      setError(null);
-      setStatusMessage('새로운 작업이 시작되었습니다. 기존 결과물은 삭제되었습니다.');
-      setSelectedFile(event.target.files[0]);
-      
-      // 같은 파일 반복 선택이 가능하도록 value 초기화
+      addFilesToQueue(event.target.files);
       event.target.value = '';
     }
   };
@@ -119,56 +123,80 @@ function App() {
     setIsDragging(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      if (file.type.startsWith('image/')) {
-        setProcessedImageUrl(null);
-        setError(null);
-        setStatusMessage('새로운 작업이 시작되었습니다. 기존 결과물은 삭제되었습니다.');
-        setSelectedFile(file);
-      } else {
-        setError('이미지 파일만 업로드 가능합니다.');
-      }
+      addFilesToQueue(e.dataTransfer.files);
     }
   };
 
-  const handleProcessImage = async () => {
-    if (!selectedFile) return;
-
-    setIsLoading(true);
-    setError(null);
-    setStatusMessage(null);
+  const processItem = async (item: ProcessingItem) => {
+    // Update status to processing
+    setProcessingItems(prev => 
+      prev.map(p => p.id === item.id ? { ...p, status: 'processing', progress: 10 } : p)
+    );
 
     const formData = new FormData();
-    formData.append('image', selectedFile);
+    formData.append('image', item.file);
     formData.append('opacity', String(opacity / 100));
-    // 로그인 정보를 서버로 함께 보냅니다.
     formData.append('email', loginEmail);
     formData.append('password', loginPassword);
 
     try {
       const apiUrl = '/api/process-image';
+      
+      // Simulate progress while waiting for the actual response
+      const progressInterval = setInterval(() => {
+        setProcessingItems(prev => 
+          prev.map(p => {
+            if (p.id === item.id && p.status === 'processing' && p.progress < 90) {
+              return { ...p, progress: p.progress + 5 };
+            }
+            return p;
+          })
+        );
+      }, 500);
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         body: formData,
       });
 
+      clearInterval(progressInterval);
+
       if (!response.ok) {
         const errorText = await response.text();
         if (response.status === 401) {
-          setIsLoggedIn(false); // 인증 실패 시 다시 로그인 화면으로
-          throw new Error('로그인 정보가 만료되었거나 틀렸습니다.');
+          setIsLoggedIn(false);
+          throw new Error('인증 실패');
         }
         throw new Error(errorText || 'Failed to process image.');
       }
 
       const data = await response.json();
-      setProcessedImageUrl(data.resultUrl);
+      
+      setProcessingItems(prev => 
+        prev.map(p => p.id === item.id ? { 
+          ...p, 
+          status: 'completed', 
+          progress: 100, 
+          resultUrl: data.resultUrl 
+        } : p)
+      );
+
+      // Auto-download for completed item
+      const link = document.createElement('a');
+      link.href = data.resultUrl;
+      link.setAttribute('download', `processed-${item.file.name}`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
     } catch (err: any) {
-      setError(err.message || 'An unknown error occurred.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+      setProcessingItems(prev => 
+        prev.map(p => p.id === item.id ? { 
+          ...p, 
+          status: 'error', 
+          error: err.message || 'Error occurred' 
+        } : p)
+      );
     }
   };
 
@@ -209,6 +237,7 @@ function App() {
 
   return (
     <div className="container">
+      <div className="brand-logo">SCHEMADE</div>
       <header>
         <div className="header-top">
           <h1>Image Background Blender</h1>
@@ -242,29 +271,49 @@ function App() {
           onDrop={handleDrop}
         >
           <h2>2. Select, Drag & Drop or Paste</h2>
-          <p>Click to select, drag a file here, or just press <strong>Ctrl+V</strong> to paste from clipboard.</p>
-          <input type="file" accept="image/*" onChange={handleFileChange} />
+          <p>You can select <strong>multiple images</strong> at once.</p>
+          <input type="file" accept="image/*" onChange={handleFileChange} multiple />
           {statusMessage && <p className="status-message">{statusMessage}</p>}
-          {selectedFile && !isLoading && !error && !statusMessage && <p>Current file: {selectedFile.name}</p>}
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {processingItems.length > 0 && (
+          <div className="processing-list">
+            <h3>Processing Queue ({processingItems.length})</h3>
+            <div className="items-container">
+              {processingItems.map(item => (
+                <div key={item.id} className={`process-item ${item.status}`}>
+                  <div className="item-info">
+                    <span className="file-name">{item.file.name}</span>
+                    <span className="status-badge">{item.status}</span>
+                  </div>
+                  
+                  {item.status !== 'completed' && item.status !== 'error' && (
+                    <div className="progress-container">
+                      <div className="progress-bar" style={{ width: `${item.progress}%` }}></div>
+                    </div>
+                  )}
 
-        {isLoading && (
-          <div className='status-section'>
-            <div className="loading-spinner"></div>
-            <p>Processing image...</p>
-          </div>
-        )}
+                  {item.status === 'completed' && (
+                    <div className="item-result">
+                      <img src={item.resultUrl} alt="Result" className="mini-preview" />
+                      <a href={item.resultUrl} download={`processed-${item.file.name}`} className="mini-download">
+                        Download
+                      </a>
+                    </div>
+                  )}
 
-        {processedImageUrl && !isLoading && (
-          <div className="result-section">
-            <h3>Download Started!</h3>
-            <p>If your download didn't start, you can use the link below.</p>
-            <img src={processedImageUrl} alt="Processed result" className="result-image" />
-            <a href={processedImageUrl} download={`processed-${Date.now()}.png`} className="download-button">
-              Download Again
-            </a>
+                  {item.status === 'error' && (
+                    <div className="item-error">{item.error}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button 
+              className="clear-button" 
+              onClick={() => setProcessingItems([])}
+            >
+              Clear All
+            </button>
           </div>
         )}
       </main>
