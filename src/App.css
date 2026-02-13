@@ -10,15 +10,21 @@
 body {
   margin: 0;
   display: flex;
-  place-items: center;
+  justify-content: center;
+  align-items: center;
   min-width: 320px;
   min-height: 100vh;
+  width: 100%;
 }
 
 .container {
+  width: 100%;
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
@@ -27,11 +33,21 @@ header h1 {
   font-weight: bold;
 }
 
+header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .header-top {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  gap: 1rem;
   margin-bottom: 0.5rem;
+  width: 100%;
+  position: relative;
 }
 
 .logout-button {
@@ -247,4 +263,53 @@ input[type="range"]::-moz-range-thumb {
   background: #646cff;
   border-radius: 50%;
   cursor: pointer;
+}
+
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.login-form {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background-color: #2f2f2f;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-top: 2rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 0.8rem;
+  border-radius: 4px;
+  border: 1px solid #444;
+  background-color: #1a1a1a;
+  color: white;
+  box-sizing: border-box;
+}
+
+.login-button {
+  width: 100%;
+  background-color: #646cff;
+  color: white;
+  margin-top: 1rem;
+}
+
+.login-button:hover {
+  background-color: #535bf2;
 }
