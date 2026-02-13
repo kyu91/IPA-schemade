@@ -52,7 +52,8 @@ export default async function handler(req, res) {
 
     // 3. 이미지 처리 (Sharp)
     const targetOpacity = parseFloat(opacity) || 0.95;
-    let foregroundImage = sharp(file.filepath);
+    const fileBuffer = fs.readFileSync(file.filepath);
+    let foregroundImage = sharp(fileBuffer);
     let foregroundMetadata = await foregroundImage.metadata();
 
     // 3. 랜덤 크롭 (0.1% ~ 0.5%)
@@ -96,7 +97,11 @@ export default async function handler(req, res) {
     res.status(200).json({ resultUrl: `data:image/png;base64,${base64Image}` });
 
   } catch (error) {
-    console.error('Error processing image:', error);
-    res.status(500).json({ error: 'Failed to process image.' });
+    console.error('Detailed Error Context:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data
+    });
+    res.status(500).json({ error: `Failed to process image: ${error.message}` });
   }
 }
