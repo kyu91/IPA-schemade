@@ -336,7 +336,7 @@ function App() {
                   {item.status === 'completed' && (
                     <div className="item-result">
                       <img src={item.resultUrl} alt="Result" className="mini-preview" />
-                      <a href={item.resultUrl} download={`processed-${item.file.name}`} className="mini-download">
+                      <a href={item.resultUrl} download={item.fileName} className="mini-download">
                         Download
                       </a>
                     </div>
