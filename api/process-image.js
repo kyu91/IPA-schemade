@@ -68,7 +68,9 @@ export default async function handler(req, res) {
       height: cropHeight
     });
     
-    // 크롭 후 메타데이터 갱신
+    // 크롭 후 '새로운 버킷'에 담아서 메타데이터를 확실히 갱신
+    const croppedBuffer = await foregroundImage.toBuffer();
+    foregroundImage = sharp(croppedBuffer);
     foregroundMetadata = await foregroundImage.metadata();
     
     // 전경 이미지 투명도 조절
