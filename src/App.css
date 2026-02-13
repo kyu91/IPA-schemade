@@ -199,7 +199,6 @@ button:disabled {
 
 .completed .status-badge { background-color: #4cd137; color: black; }
 .processing .status-badge { background-color: #646cff; color: white; }
-.converting .status-badge { background-color: #f1c40f; color: black; }
 .error .status-badge { background-color: #ff4757; color: white; }
 
 .progress-container {
