@@ -3,26 +3,42 @@ import './App.css';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [loginEmail, setLoginEmail] = useState<string>('');
-  const [loginPassword, setLoginPassword] = useState<string>('');
+  const [loginEmail, setLoginEmail] = useState<string>(localStorage.getItem('email') || '');
+  const [loginPassword, setLoginPassword] = useState<string>(localStorage.getItem('password') || '');
   const [loginError, setLoginError] = useState<string | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [opacity, setOpacity] = useState<number>(95);
+
+  // 자동 로그인 체크 (페이지 로드 시)
+  useEffect(() => {
+    if (loginEmail && loginPassword) {
+      setIsLoggedIn(true);
+    }
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // 프론트엔드에서는 값의 유무만 확인하고 로그인을 허용합니다.
-    // 실제 보안 검증은 서버(Vercel Function)에서 환경 변수와 비교하여 처리합니다.
     if (loginEmail && loginPassword) {
+      localStorage.setItem('email', loginEmail);
+      localStorage.setItem('password', loginPassword);
       setIsLoggedIn(true);
       setLoginError(null);
     } else {
       setLoginError('아이디와 비밀번호를 입력해주세요.');
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('email');
+    localStorage.removeItem('password');
+    setIsLoggedIn(false);
+    setLoginEmail('');
+    setLoginPassword('');
   };
 
   // Effect to automatically start processing when a file is selected
@@ -46,8 +62,10 @@ function App() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
+      // 새로운 파일을 선택하면 이전 작업 결과 초기화
       setProcessedImageUrl(null);
       setError(null);
+      setStatusMessage('새로운 작업이 시작되었습니다. 기존 결과물은 삭제되었습니다.');
       setSelectedFile(event.target.files[0]);
     }
   };
@@ -57,6 +75,7 @@ function App() {
 
     setIsLoading(true);
     setError(null);
+    setStatusMessage(null);
 
     const formData = new FormData();
     formData.append('image', selectedFile);
@@ -130,7 +149,10 @@ function App() {
   return (
     <div className="container">
       <header>
-        <h1>Image Background Blender</h1>
+        <div className="header-top">
+          <h1>Image Background Blender</h1>
+          <button onClick={handleLogout} className="logout-button">로그아웃</button>
+        </div>
         <p>Set opacity, then select an image to automatically process and download it.</p>
       </header>
 
@@ -154,7 +176,8 @@ function App() {
           <h2>2. Select Your Image</h2>
           <p>Processing and download will start automatically.</p>
           <input type="file" accept="image/*" onChange={handleFileChange} />
-          {selectedFile && !isLoading && !error && <p>Last file: {selectedFile.name}</p>}
+          {statusMessage && <p className="status-message">{statusMessage}</p>}
+          {selectedFile && !isLoading && !error && !statusMessage && <p>Current file: {selectedFile.name}</p>}
         </div>
 
         {error && <div className="error-message">{error}</div>}

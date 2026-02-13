@@ -27,6 +27,27 @@ header h1 {
   font-weight: bold;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.logout-button {
+  background-color: #ff4757;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.logout-button:hover {
+  background-color: #ff6b81;
+}
+
 header p {
   color: #aaa;
   margin-bottom: 2rem;
@@ -49,6 +70,16 @@ main {
 
 input[type="file"] {
   font-size: 1em;
+}
+
+.status-message {
+  color: #646cff;
+  font-weight: bold;
+  margin-top: 1rem;
+  padding: 0.8rem;
+  background-color: #1a1a1a;
+  border: 1px solid #646cff;
+  border-radius: 4px;
 }
 
 button {
