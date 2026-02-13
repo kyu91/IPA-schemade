@@ -96,7 +96,12 @@ export default async function handler(req, res) {
       .toBuffer();
 
     const base64Image = processedImageBuffer.toString('base64');
-    res.status(200).json({ resultUrl: `data:image/png;base64,${base64Image}` });
+    // 결과 파일명을 서버에서도 생성하여 전달 (옵션)
+    const randomFileName = `${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}.png`;
+    res.status(200).json({ 
+      resultUrl: `data:image/png;base64,${base64Image}`,
+      fileName: randomFileName
+    });
 
   } catch (error) {
     console.error('Detailed Error Context:', {

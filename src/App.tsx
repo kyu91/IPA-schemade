@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import heic2any from 'heic2any';
 import './App.css';
 
 interface ProcessingItem {
   id: string;
-  file: File;
-  status: 'pending' | 'processing' | 'completed' | 'error';
+  file: File | Blob;
+  fileName: string;
+  status: 'pending' | 'converting' | 'processing' | 'completed' | 'error';
   progress: number;
   resultUrl?: string;
   error?: string;
@@ -82,20 +84,56 @@ function App() {
     });
   }, [processingItems]);
 
-  const addFilesToQueue = (files: FileList | File[]) => {
-    const newItems: ProcessingItem[] = Array.from(files)
-      .filter(file => file.type.startsWith('image/'))
-      .map(file => ({
-        id: Math.random().toString(36).substr(2, 9),
+  const addFilesToQueue = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    
+    for (const file of fileArray) {
+      const id = Math.random().toString(36).substr(2, 9);
+      const isHEIC = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
+      
+      // 초기 아이템 추가
+      const newItem: ProcessingItem = {
+        id,
         file: file,
-        status: 'pending',
+        fileName: file.name,
+        status: isHEIC ? 'converting' : 'pending',
         progress: 0
-      }));
+      };
 
-    if (newItems.length > 0) {
-      setProcessingItems(prev => [...prev, ...newItems]);
-      setStatusMessage(`${newItems.length}개의 새로운 작업이 추가되었습니다.`);
+      setProcessingItems(prev => [...prev, newItem]);
+
+      if (isHEIC) {
+        try {
+          // HEIC -> PNG 변환
+          const convertedBlob = await heic2any({
+            blob: file,
+            toType: 'image/png'
+          });
+
+          const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+          const newFileName = file.name.replace(/\.(heic|heif)$/i, '.png');
+
+          setProcessingItems(prev => 
+            prev.map(p => p.id === id ? { 
+              ...p, 
+              file: finalBlob, 
+              fileName: newFileName,
+              status: 'pending' 
+            } : p)
+          );
+        } catch (err) {
+          setProcessingItems(prev => 
+            prev.map(p => p.id === id ? { 
+              ...p, 
+              status: 'error', 
+              error: 'HEIC 변환 실패' 
+            } : p)
+          );
+        }
+      }
     }
+    
+    setStatusMessage(`${fileArray.length}개의 파일이 처리 대기 중입니다.`);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,7 +172,7 @@ function App() {
     );
 
     const formData = new FormData();
-    formData.append('image', item.file);
+    formData.append('image', item.file, item.fileName);
     formData.append('opacity', String(opacity / 100));
     formData.append('email', loginEmail);
     formData.append('password', loginPassword);
@@ -171,20 +209,22 @@ function App() {
       }
 
       const data = await response.json();
+      const finalFileName = data.fileName || `${Math.random().toString(36).substring(2, 12)}.png`;
       
       setProcessingItems(prev => 
         prev.map(p => p.id === item.id ? { 
           ...p, 
           status: 'completed', 
           progress: 100, 
-          resultUrl: data.resultUrl 
+          resultUrl: data.resultUrl,
+          fileName: finalFileName // Update with random name from server
         } : p)
       );
 
       // Auto-download for completed item
       const link = document.createElement('a');
       link.href = data.resultUrl;
-      link.setAttribute('download', `processed-${item.file.name}`);
+      link.setAttribute('download', finalFileName);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -283,7 +323,7 @@ function App() {
               {processingItems.map(item => (
                 <div key={item.id} className={`process-item ${item.status}`}>
                   <div className="item-info">
-                    <span className="file-name">{item.file.name}</span>
+                    <span className="file-name">{item.fileName}</span>
                     <span className="status-badge">{item.status}</span>
                   </div>
                   
