@@ -13,8 +13,8 @@ interface ProcessingItem {
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [loginEmail, setLoginEmail] = useState<string>(localStorage.getItem('email') || '');
-  const [loginPassword, setLoginPassword] = useState<string>(localStorage.getItem('password') || '');
+  const [loginEmail, setLoginEmail] = useState<string>((localStorage.getItem('email') || '').trim());
+  const [loginPassword, setLoginPassword] = useState<string>((localStorage.getItem('password') || '').trim());
   const [loginError, setLoginError] = useState<string | null>(null);
 
   const [processingItems, setProcessingItems] = useState<ProcessingItem[]>([]);
@@ -58,15 +58,40 @@ function App() {
     };
   }, [isLoggedIn]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginEmail && loginPassword) {
-      localStorage.setItem('email', loginEmail);
-      localStorage.setItem('password', loginPassword);
+
+    const trimmedEmail = loginEmail.trim();
+    const trimmedPassword = loginPassword.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setLoginError('아이디와 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('email', trimmedEmail);
+      formData.append('password', trimmedPassword);
+
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        setLoginError('아이디 또는 비밀번호가 일치하지 않습니다.');
+        return;
+      }
+
+      setLoginEmail(trimmedEmail);
+      setLoginPassword(trimmedPassword);
+      localStorage.setItem('email', trimmedEmail);
+      localStorage.setItem('password', trimmedPassword);
       setIsLoggedIn(true);
       setLoginError(null);
-    } else {
-      setLoginError('아이디와 비밀번호를 입력해주세요.');
+    } catch {
+      setLoginError('서버 연결에 실패했습니다.');
     }
   };
 
@@ -247,7 +272,7 @@ function App() {
             <input 
               type="email" 
               value={loginEmail} 
-              onChange={(e) => setLoginEmail(e.target.value)} 
+              onChange={(e) => setLoginEmail(e.target.value.trim())}
               placeholder="example@daum.net"
               required 
             />
@@ -257,7 +282,7 @@ function App() {
             <input 
               type="password" 
               value={loginPassword} 
-              onChange={(e) => setLoginPassword(e.target.value)} 
+              onChange={(e) => setLoginPassword(e.target.value.trim())}
               placeholder="••••••••"
               required 
             />
